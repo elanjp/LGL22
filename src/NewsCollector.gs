@@ -10,6 +10,8 @@
  */
 
 const NEWS_CONFIG = {
+  // スプレッドシート名とメール件名に使うタイトル
+  TITLE: 'ウクライナ情勢',
   // 保存先スプレッドシートの ID。空なら setupNewsCollector() が新規作成して保存する
   SPREADSHEET_ID: '',
   // ダイジェストの送信先。空なら実行ユーザー自身に送る
@@ -38,25 +40,35 @@ const NEWS_EDITIONS = {
   'zh-TW': { label: '中国語(繁体)', hl: 'zh-TW', gl: 'TW', ceid: 'TW:zh-Hant' },
   ko: { label: '韓国語', hl: 'ko', gl: 'KR', ceid: 'KR:ko' },
   ru: { label: 'ロシア語', hl: 'ru', gl: 'RU', ceid: 'RU:ru' },
+  uk: { label: 'ウクライナ語', hl: 'uk', gl: 'UA', ceid: 'UA:uk' },
 };
 
 // 「対象」シートの初期値: [有効, カテゴリ, 言語, 検索クエリ]
+// ウクライナ情勢を 戦況 / 外交・停戦交渉 / 支援・各国の動き に分けて追う。
+// 末尾の一般的な政治・国際情勢・軍事の行は無効で入れてあり、チェックすれば併用できる。
 const NEWS_DEFAULT_TARGETS = [
-  [true, '政治', 'ja', '政治 OR 首相 OR 国会 OR 内閣 OR 選挙'],
-  [true, '政治', 'en', 'politics OR election OR parliament OR "prime minister" OR president'],
-  [true, '政治', 'zh', '政治 OR 选举 OR 总统 OR 总理 OR 议会'],
-  [true, '政治', 'ko', '정치 OR 대통령 OR 국회 OR 선거'],
-  [true, '政治', 'ru', 'политика OR выборы OR президент OR парламент'],
-  [true, '国際情勢', 'ja', '外交 OR 国際情勢 OR 首脳会談 OR 制裁 OR 国連'],
-  [true, '国際情勢', 'en', 'diplomacy OR geopolitics OR sanctions OR summit OR "United Nations"'],
-  [true, '国際情勢', 'zh', '外交 OR 国际局势 OR 制裁 OR 峰会 OR 联合国'],
-  [true, '国際情勢', 'ko', '외교 OR 국제정세 OR 제재 OR 정상회담 OR 유엔'],
-  [true, '国際情勢', 'ru', 'дипломатия OR геополитика OR санкции OR саммит OR ООН'],
-  [true, '軍事', 'ja', '軍事 OR 防衛省 OR 自衛隊 OR ミサイル OR 安全保障'],
-  [true, '軍事', 'en', 'military OR defense OR missile OR NATO OR Pentagon'],
-  [true, '軍事', 'zh', '军事 OR 国防 OR 解放军 OR 导弹 OR 军演'],
-  [true, '軍事', 'ko', '군사 OR 국방 OR 미사일 OR 합참 OR 안보'],
-  [true, '軍事', 'ru', 'военные OR армия OR Минобороны OR ракета OR НАТО'],
+  [true, '戦況', 'ja', 'ウクライナ (戦況 OR 前線 OR 攻撃 OR ドローン OR ミサイル)'],
+  [true, '戦況', 'en', 'Ukraine (frontline OR offensive OR strike OR drone OR missile)'],
+  [true, '戦況', 'zh', '乌克兰 (战况 OR 前线 OR 袭击 OR 无人机 OR 导弹)'],
+  [true, '戦況', 'ko', '우크라이나 (전황 OR 전선 OR 공격 OR 드론 OR 미사일)'],
+  [true, '戦況', 'ru', 'Украина (фронт OR наступление OR удар OR беспилотник OR ракета)'],
+  [true, '戦況', 'uk', 'ЗСУ OR фронт OR наступ OR обстріл OR дрон'],
+  [true, '外交・停戦交渉', 'ja', 'ウクライナ (停戦 OR 和平 OR 交渉 OR 首脳会談 OR 制裁)'],
+  [true, '外交・停戦交渉', 'en', 'Ukraine (ceasefire OR "peace talks" OR negotiations OR sanctions OR summit)'],
+  [true, '外交・停戦交渉', 'zh', '乌克兰 (停火 OR 和谈 OR 谈判 OR 制裁 OR 峰会)'],
+  [true, '外交・停戦交渉', 'ko', '우크라이나 (휴전 OR 평화협상 OR 협상 OR 제재 OR 정상회담)'],
+  [true, '外交・停戦交渉', 'ru', 'Украина (перемирие OR переговоры OR "мирный план" OR санкции OR саммит)'],
+  [true, '外交・停戦交渉', 'uk', "перемир'я OR переговори OR \"мирний план\" OR санкції OR саміт"],
+  [true, '支援・各国の動き', 'ja', 'ウクライナ (支援 OR 軍事援助 OR 武器供与 OR NATO OR EU)'],
+  [true, '支援・各国の動き', 'en', 'Ukraine (aid OR "military assistance" OR weapons OR NATO OR EU)'],
+  [true, '支援・各国の動き', 'zh', '乌克兰 (援助 OR 军援 OR 武器 OR 北约 OR 欧盟)'],
+  [true, '支援・各国の動き', 'ko', '우크라이나 (지원 OR 군사원조 OR 무기 OR 나토 OR EU)'],
+  [true, '支援・各国の動き', 'ru', 'Украина ("поставки оружия" OR помощь OR НАТО OR ЕС OR Запад)'],
+  [true, '支援・各国の動き', 'uk', 'допомога OR зброя OR НАТО OR ЄС OR партнери'],
+  [false, '政治', 'ja', '政治 OR 首相 OR 国会 OR 内閣 OR 選挙'],
+  [false, '国際情勢', 'ja', '外交 OR 国際情勢 OR 首脳会談 OR 制裁 OR 国連'],
+  [false, '軍事', 'ja', '軍事 OR 防衛省 OR 自衛隊 OR ミサイル OR 安全保障'],
+  [false, '軍事', 'en', 'military OR defense OR missile OR NATO OR Pentagon'],
 ];
 
 const NEWS_TARGET_SHEET = '対象';
@@ -112,7 +124,7 @@ function openNewsSpreadsheet_() {
   const id = NEWS_CONFIG.SPREADSHEET_ID || props.getProperty('NEWS_SPREADSHEET_ID');
   if (id) return SpreadsheetApp.openById(id);
 
-  const ss = SpreadsheetApp.create('ニュースまとめ');
+  const ss = SpreadsheetApp.create(`ニュースまとめ: ${NEWS_CONFIG.TITLE}`);
   props.setProperty('NEWS_SPREADSHEET_ID', ss.getId());
   // 新規作成時の空の「シート1」は対象シートとして使い回す
   ss.getSheets()[0].setName(NEWS_TARGET_SHEET);
@@ -274,7 +286,7 @@ function sendDigest_(articles, targets, sheetUrl) {
   const tz = Session.getScriptTimeZone();
   const now = new Date();
   const slot = Number(Utilities.formatDate(now, tz, 'H')) < 12 ? '朝' : '夕';
-  const subject = `[ニュースまとめ] ${Utilities.formatDate(now, tz, 'yyyy-MM-dd')} ${slot} (${articles.length}件)`;
+  const subject = `[${NEWS_CONFIG.TITLE}] ${Utilities.formatDate(now, tz, 'yyyy-MM-dd')} ${slot} (${articles.length}件)`;
 
   // 「対象」シートの並び順でカテゴリ・言語を並べる
   const categories = [...new Set(targets.map((t) => t.category))];
